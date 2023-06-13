@@ -5,11 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  String currentLanguage = await LanguageManager.getLanguage();
+  runApp(MyApp(currentLanguage: currentLanguage));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  final String currentLanguage;
+
+  const MyApp({Key? key, required this.currentLanguage}) : super(key: key);
+
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -20,8 +24,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _currentLanguage = LanguageManager.getLanguage().toString();
-    debugPrint("Current Language: $_currentLanguage");
+    _currentLanguage = widget.currentLanguage;
   }
 
   void _changeLanguage(String languageCode) {
@@ -56,6 +59,7 @@ class _MyAppState extends State<MyApp> {
       },
       home: MyHomePage(
         title: 'Flutter Demo Home Page',
+        currentLanguage: _currentLanguage,
         onLanguageChanged: _changeLanguage,
       ),
     );
@@ -64,9 +68,15 @@ class _MyAppState extends State<MyApp> {
 
 class MyHomePage extends StatefulWidget {
   final String title;
+  final String currentLanguage;
   final ValueChanged<String> onLanguageChanged;
 
-  const MyHomePage({Key? key, required this.title, required this.onLanguageChanged}) : super(key: key);
+  const MyHomePage(
+      {Key? key,
+      required this.title,
+      required this.currentLanguage,
+      required this.onLanguageChanged})
+      : super(key: key);
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -78,8 +88,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<String> callNativeCode() async {
     try {
-      var data =
-      await methodChannel.invokeMethod('languageFunction', {"languageCode": _selectedLanguage});
+      var data = await methodChannel.invokeMethod(
+          'languageFunction', {"languageCode": _selectedLanguage});
       return data;
     } on PlatformException catch (e) {
       return "Failed to Invoke: '${e.message}'.";
@@ -98,7 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _selectedLanguage = LanguageManager.getLanguage().toString();
+    _selectedLanguage = widget.currentLanguage;
   }
 
   void _handleLanguageChange(String? languageCode) {
@@ -110,7 +120,6 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
               title: const Text('English'),
               value: 'en',
               groupValue: _selectedLanguage,
-              onChanged:(String? value) {
+              onChanged: (String? value) {
                 _handleLanguageChange(value);
                 callNativeCode();
               },
@@ -135,7 +144,7 @@ class _MyHomePageState extends State<MyHomePage> {
               title: const Text('Japanese'),
               value: 'ja',
               groupValue: _selectedLanguage,
-              onChanged:(String? value) {
+              onChanged: (String? value) {
                 _handleLanguageChange(value);
                 callNativeCode();
               },
@@ -149,7 +158,8 @@ class _MyHomePageState extends State<MyHomePage> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             Text(
-              AppLocalizations.of(context).screen_one_text("Solaiman", "Shokal", 12),
+              AppLocalizations.of(context)
+                  .screen_one_text("Solaiman", "Shokal", 12),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
           ],
@@ -158,7 +168,6 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
 
 class LanguageManager {
   static Future<void> setLanguage(String languageCode) async {
@@ -170,6 +179,18 @@ class LanguageManager {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? languageCode = prefs.getString(Utils.kLanguagePreferenceKey);
     return languageCode ?? 'en'; // Default language is English
+  }
+}
+
+class MyAppLanguage {
+  static String _language = 'en';
+
+  static void setLanguage(String language) {
+    _language = language;
+  }
+
+  static String getLanguage() {
+    return _language;
   }
 }
 

@@ -1,69 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  String _currentLanguage = 'en';
-
-  void _changeLanguage(String languageCode) {
-    setState(() {
-      _currentLanguage = languageCode;
-      LanguageManager.setLanguage(languageCode);
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeLanguage();
-  }
-
-  void _initializeLanguage() async {
-    final languageCode = await LanguageManager.getLanguage();
-    setState(() {
-      _currentLanguage = languageCode;
-    });
-    debugPrint("Current Language: $_currentLanguage");
-  }
-
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          secondary: Colors.deepPurple,
+    return ChangeNotifierProvider(
+      create: (context) => LanguageManager(),
+      child: Consumer<LanguageManager>(
+        builder: (context, languageManager, child) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Flutter Demo',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSwatch().copyWith(
+              secondary: Colors.deepPurple,
+            ),
+          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: Locale(languageManager.currentLanguage),
+          home: MyHomePage(title: 'Flutter Demo Home Page'),
         ),
-      ),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: Locale(_currentLanguage),
-      localeResolutionCallback: (locale, supportedLocales) {
-        for (final supportedLocale in supportedLocales) {
-          if (supportedLocale.languageCode == locale?.languageCode) {
-            LanguageManager.setLanguage(locale!.languageCode);
-            return supportedLocale;
-          }
-        }
-        LanguageManager.setLanguage(supportedLocales.first.languageCode);
-        return supportedLocales.first;
-      },
-      home: MyHomePage(
-        title: 'Flutter Demo Home Page',
-        onLanguageChanged: _changeLanguage,
       ),
     );
   }
@@ -71,22 +35,20 @@ class _MyAppState extends State<MyApp> {
 
 class MyHomePage extends StatefulWidget {
   final String title;
-  final ValueChanged<String> onLanguageChanged;
 
-  const MyHomePage({Key? key, required this.title, required this.onLanguageChanged}) : super(key: key);
+  const MyHomePage({Key? key, required this.title}) : super(key: key);
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String _selectedLanguage = 'en';
   var methodChannel = const MethodChannel("shokal");
 
-  Future<String> callNativeCode() async {
+  Future<String> callNativeCode(String languageCode) async {
     try {
-      var data =
-      await methodChannel.invokeMethod('languageFunction', {"languageCode": _selectedLanguage});
+      var data = await methodChannel
+          .invokeMethod('languageFunction', {"languageCode": languageCode});
       return data;
     } on PlatformException catch (e) {
       return "Failed to Invoke: '${e.message}'.";
@@ -103,29 +65,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    LanguageManager.getLanguage().then((languageCode) {
-      setState(() {
-        _selectedLanguage = languageCode;
-      });
-    });
-  }
-
-  void _handleLanguageChange(String? languageCode) {
-    if (languageCode != null) {
-      setState(() {
-        _selectedLanguage = languageCode;
-        LanguageManager.setLanguage(languageCode);
-        widget.onLanguageChanged(languageCode);
-        debugPrint("Language set to $languageCode");
-      });
-    }
-  }
-
-
-  @override
   Widget build(BuildContext context) {
+    var languageManager = Provider.of<LanguageManager>(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -137,19 +78,23 @@ class _MyHomePageState extends State<MyHomePage> {
             RadioListTile(
               title: const Text('English'),
               value: 'en',
-              groupValue: _selectedLanguage,
-              onChanged:(String? value) {
-                _handleLanguageChange(value);
-                callNativeCode();
+              groupValue: languageManager.currentLanguage,
+              onChanged: (String? value) {
+                if (value != null) {
+                  languageManager.changeLanguage(value);
+                  callNativeCode(value);
+                }
               },
             ),
             RadioListTile(
               title: const Text('Japanese'),
               value: 'ja',
-              groupValue: _selectedLanguage,
-              onChanged:(String? value) {
-                _handleLanguageChange(value);
-                callNativeCode();
+              groupValue: languageManager.currentLanguage,
+              onChanged: (String? value) {
+                if (value != null) {
+                  languageManager.changeLanguage(value);
+                  callNativeCode(value);
+                }
               },
             ),
             ElevatedButton(
@@ -161,7 +106,8 @@ class _MyHomePageState extends State<MyHomePage> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             Text(
-              AppLocalizations.of(context).screen_one_text("Solaiman", "Shokal", 12),
+              AppLocalizations.of(context)
+                  .screen_one_text("Solaiman", "Shokal", 12),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
           ],
@@ -171,33 +117,31 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
+class LanguageManager extends ChangeNotifier {
+  String _currentLanguage = 'en';
 
-class LanguageManager {
-  static setLanguage(String languageCode) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(Utils.kLanguagePreferenceKey, languageCode);
-
-    // SharedPreferences.getInstance().then((sp) {
-    //   sp.setString(Utils.kLanguagePreferenceKey, languageCode);
-    //   debugPrint("Language set to $languageCode");
-    // });
-
-
+  LanguageManager() {
+    getLanguage();
   }
 
+  String get currentLanguage => _currentLanguage;
 
+  void changeLanguage(String languageCode) {
+    _currentLanguage = languageCode;
+    setLanguage(languageCode);
+    notifyListeners();
+  }
 
-  static Future<String> getLanguage() async{
+  Future<void> getLanguage() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? languageCode = prefs.getString(Utils.kLanguagePreferenceKey);
-    return languageCode ?? 'en'; // Default language is English
+    _currentLanguage = languageCode ?? 'en';
+    notifyListeners();
+  }
 
-    // var languageCode = "en";
-    // SharedPreferences.getInstance().then((sp) {
-    //   languageCode = sp.getString(Utils.kLanguagePreferenceKey) ?? "en";
-    // });
-    //
-    // return languageCode;
+  Future<void> setLanguage(String languageCode) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(Utils.kLanguagePreferenceKey, languageCode);
   }
 }
 
