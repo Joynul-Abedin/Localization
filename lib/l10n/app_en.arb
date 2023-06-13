@@ -1,0 +1,13 @@
+{
+  "title": "I Love Programming",
+  "screen_one_text": "Text from {msg} and {msg2} and {msg3}",
+  "screen_two_text": "Text from Screen Two",
+  "screen_three_text": "Text from Screen Three",
+  "screen_one_button_text": "Screen One",
+  "screen_two_button_text": "Screen Two",
+  "screen_three_button_text": "Screen Three",
+  "toast_message": "This is from native.",
+  "welcome": "Welcome, %s!",
+
+  "btn1" : "Native"
+}

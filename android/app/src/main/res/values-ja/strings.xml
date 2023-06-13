@@ -1,0 +1,5 @@
+<resources>
+    <string name="title_activity_native">NativeActivity</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="hello_world">こんにちは世界</string>
+</resources>

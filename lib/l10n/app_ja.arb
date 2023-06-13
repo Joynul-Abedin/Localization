@@ -1,0 +1,11 @@
+{
+  "title": "プログラミングが大好き",
+  "screen_one_button_text": "スクリーンワン",
+  "screen_two_button_text": "スクリーン 2",
+  "screen_three_button_text": "スクリーン 3",
+  "screen_one_text": "スクリーン ワンのテキスト",
+  "screen_two_text": "画面 2 のテキスト",
+  "screen_three_text": "スクリーン 3 のテキスト",
+  "toast_message": "ネイティブからです。",
+  "btn1" : "ネイティブからです"
+}
