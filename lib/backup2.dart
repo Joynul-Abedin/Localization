@@ -1,35 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => LanguageBloc(),
-      child: BlocBuilder<LanguageBloc, LanguageState>(
-        builder: (context, state) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Flutter Demo',
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSwatch().copyWith(
-                secondary: Colors.deepPurple,
-              ),
+    return ChangeNotifierProvider(
+      create: (context) => LanguageManager(),
+      child: Consumer<LanguageManager>(
+        builder: (context, languageManager, child) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Flutter Demo',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSwatch().copyWith(
+              secondary: Colors.deepPurple,
             ),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            locale: Locale(state.languageCode),
-            home: const MyHomePage(title: 'Flutter Demo Home Page'),
-          );
-        },
+          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: Locale(languageManager.currentLanguage),
+          home: const MyHomePage(title: 'Flutter Demo Home Page'),
+        ),
       ),
     );
   }
@@ -41,7 +41,7 @@ class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key, required this.title}) : super(key: key);
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
@@ -68,6 +68,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    var languageManager = Provider.of<LanguageManager>(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -79,10 +80,10 @@ class _MyHomePageState extends State<MyHomePage> {
             RadioListTile(
               title: const Text('English'),
               value: 'en',
-              groupValue: BlocProvider.of<LanguageBloc>(context).state.languageCode,
+              groupValue: languageManager.currentLanguage,
               onChanged: (String? value) {
                 if (value != null) {
-                  BlocProvider.of<LanguageBloc>(context).add(ChangeLanguageEvent(value));
+                  languageManager.changeLanguage(value);
                   callNativeCode(value);
                 }
               },
@@ -90,10 +91,10 @@ class _MyHomePageState extends State<MyHomePage> {
             RadioListTile(
               title: const Text('Japanese'),
               value: 'ja',
-              groupValue: BlocProvider.of<LanguageBloc>(context).state.languageCode,
+              groupValue: languageManager.currentLanguage,
               onChanged: (String? value) {
                 if (value != null) {
-                  BlocProvider.of<LanguageBloc>(context).add(ChangeLanguageEvent(value));
+                  languageManager.changeLanguage(value);
                   callNativeCode(value);
                 }
               },
@@ -118,34 +119,26 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class LanguageState {
-  final String languageCode;
+class LanguageManager extends ChangeNotifier {
+  String _currentLanguage = 'en';
 
-  LanguageState(this.languageCode);
-}
-
-class ChangeLanguageEvent {
-  final String languageCode;
-
-  ChangeLanguageEvent(this.languageCode);
-}
-
-class LanguageBloc extends Bloc<ChangeLanguageEvent, LanguageState> {
-  LanguageBloc() : super(LanguageState('en')) {
-    on<ChangeLanguageEvent>(_onLanguageChanged);
+  LanguageManager() {
     getLanguage();
   }
 
-  void _onLanguageChanged(ChangeLanguageEvent event, Emitter<LanguageState> emit) async {
-    final newLanguageCode = event.languageCode;
-    await setLanguage(newLanguageCode);
-    emit(LanguageState(newLanguageCode));
+  String get currentLanguage => _currentLanguage;
+
+  void changeLanguage(String languageCode) {
+    _currentLanguage = languageCode;
+    setLanguage(languageCode);
+    notifyListeners();
   }
 
   Future<void> getLanguage() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? languageCode = prefs.getString(Utils.kLanguagePreferenceKey);
-    add(ChangeLanguageEvent(languageCode ?? 'en'));
+    _currentLanguage = languageCode ?? 'en';
+    notifyListeners();
   }
 
   Future<void> setLanguage(String languageCode) async {
@@ -153,7 +146,6 @@ class LanguageBloc extends Bloc<ChangeLanguageEvent, LanguageState> {
     await prefs.setString(Utils.kLanguagePreferenceKey, languageCode);
   }
 }
-
 
 class Utils {
   static const String kLanguagePreferenceKey = 'language_preference';
