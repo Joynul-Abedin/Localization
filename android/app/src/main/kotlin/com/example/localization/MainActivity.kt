@@ -36,6 +36,7 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+
     }
 
     @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)

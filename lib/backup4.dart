@@ -1,39 +1,34 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:restart_app/restart_app.dart';
 
-String _currentLanguage = 'en';
-
-void main() {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    _currentLanguage = await LanguageManager.getLanguage();
-    runApp(const AppRestarter(child: MyApp()));
-  }, (error, stackTrace) {
-    print('runZonedGuarded: Caught error in my root zone.');
-  });
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    const RestartWidget(
+        child:  MyApp()
+    ),
+  );
 }
 
+class RestartWidget extends StatefulWidget {
+  const RestartWidget({super.key, this.child});
 
-class AppRestarter extends StatefulWidget {
-  final Widget child;
+  final Widget? child;
 
-  const AppRestarter({super.key, required this.child});
-
-  static restartApp(BuildContext context) {
-    final AppRestarterState state =
-        context.findAncestorStateOfType<AppRestarterState>()!;
-    state.restartApp();
+  static void restartApp(BuildContext context) {
+    context.findAncestorStateOfType<_RestartWidgetState>()?.restartApp();
   }
 
   @override
-  AppRestarterState createState() => AppRestarterState();
+  State<StatefulWidget> createState() {
+    return _RestartWidgetState();
+  }
 }
 
-class AppRestarterState extends State<AppRestarter> {
+class _RestartWidgetState extends State<RestartWidget> {
   Key key = UniqueKey();
 
   void restartApp() {
@@ -42,17 +37,36 @@ class AppRestarterState extends State<AppRestarter> {
     });
   }
 
+
   @override
   Widget build(BuildContext context) {
     return KeyedSubtree(
       key: key,
-      child: widget.child,
+      child: widget.child ?? Container(),
     );
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  MyAppState createState() => MyAppState();
+}
+
+
+class MyAppState extends State<MyApp> {
+  String _currentLanguage = 'en';
+
+  @override
+  void initState() {
+    super.initState();
+    LanguageManager.getLanguage().then((lang) {
+      setState(() {
+        _currentLanguage = lang;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,22 +81,18 @@ class MyApp extends StatelessWidget {
 }
 
 class LanguageSelectionScreen extends StatefulWidget {
-  const LanguageSelectionScreen({super.key});
+  const LanguageSelectionScreen({Key? key}) : super(key: key);
 
   @override
-  LanguageSelectionScreenState createState() => LanguageSelectionScreenState();
+  LanguageSelectionScreenState createState() =>
+      LanguageSelectionScreenState();
 }
 
 class LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
+  String _currentLanguage = 'en';
   var methodChannel = const MethodChannel("shokal");
 
-  @override
-  initState(){
-    super.initState();
-    callNativeCode(_currentLanguage);
-  }
   Future<String> callNativeCode(String languageCode) async {
-    debugPrint("Language Code: $languageCode");
     try {
       var data = await methodChannel
           .invokeMethod('languageFunction', {"languageCode": languageCode});
@@ -102,6 +112,16 @@ class LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    LanguageManager.getLanguage().then((lang) {
+      setState(() {
+        _currentLanguage = lang;
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
@@ -118,7 +138,7 @@ class LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   _currentLanguage = value!;
                 });
                 LanguageManager.setLanguage(value!);
-                AppRestarter.restartApp(context);
+                RestartWidget.restartApp(context);
               },
             ),
             RadioListTile<String>(
@@ -131,7 +151,7 @@ class LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   _currentLanguage = value!;
                 });
                 LanguageManager.setLanguage(value!);
-                AppRestarter.restartApp(context);
+                RestartWidget.restartApp(context);
               },
             ),
             ElevatedButton(
